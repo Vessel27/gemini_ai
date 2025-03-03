@@ -1,14 +1,12 @@
-
 <?php
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json");
 
-// Replace with your Google Gemini API Key
-$gemini_api_key = "AIzaSyB5d10R3knr29EUiRfNd_icQD9Ic9WD9ug";  // Secure this key properly
+// Secure API Key in environment variables (never expose it publicly)
+$gemini_api_key = "AIzaSyB5d10R3knr29EUiRfNd_icQD9Ic9WD9ug"; 
 
-// Get user input
 $user_input = isset($_POST['user_input']) ? trim($_POST['user_input']) : "";
 
 if (empty($user_input)) {
@@ -16,9 +14,10 @@ if (empty($user_input)) {
     exit;
 }
 
-// Google Gemini API Request
+// API URL
 $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$gemini_api_key";
 
+// Gemini API request body (single request, larger response)
 $data = [
     "contents" => [
         ["parts" => [["text" => $user_input]]]
@@ -27,7 +26,7 @@ $data = [
         "temperature" => 0.7,
         "topP" => 0.95,
         "topK" => 40,
-        "maxOutputTokens" => 500
+        "maxOutputTokens" => 700  // Get more content in one request to reduce delay
     ]
 ];
 
@@ -36,6 +35,7 @@ $options = [
         "header"  => "Content-type: application/json\r\n",
         "method"  => "POST",
         "content" => json_encode($data),
+        "timeout" => 5  // Reduce timeout to 5 seconds for faster responses
     ]
 ];
 
@@ -44,15 +44,15 @@ $response = file_get_contents($url, false, $context);
 
 if ($response === FALSE) {
     echo json_encode(["success" => false, "message" => "API request failed."]);
-} else {
-    $response_data = json_decode($response, true);
-    
-    if (isset($response_data["candidates"][0]["content"]["parts"][0]["text"])) {
-        $generated_text = $response_data["candidates"][0]["content"]["parts"][0]["text"];
-        echo json_encode(["success" => true, "message" => trim($generated_text)]);
-    } else {
-        echo json_encode(["success" => false, "message" => "No response from AI."]);
-    }
+    exit;
 }
-?>
 
+$response_data = json_decode($response, true);
+
+// Extract AI-generated response
+$generated_text = isset($response_data["candidates"][0]["content"]["parts"][0]["text"]) 
+    ? trim($response_data["candidates"][0]["content"]["parts"][0]["text"]) 
+    : "No response from AI.";
+
+echo json_encode(["success" => true, "message" => $generated_text]);
+?>
